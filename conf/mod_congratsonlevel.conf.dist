@@ -19,3 +19,8 @@ Congrats.Announce = 1
 # ID Acore String Message
 
 Congrats.Acore.String.ID = 60000
+
+# Filter out bots from congratulations (1: filter bots | 0: include bots)
+# When set to 1, bots will not receive rewards or congratulation messages
+
+Congrats.FilterBots = 1

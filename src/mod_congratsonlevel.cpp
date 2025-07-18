@@ -19,6 +19,7 @@ config file for quick modifications.
 - Announces player level up to world
 - Awards the player for gaining new levels
 - The player forfeits the rewards if their bags are full
+- Can filter out bots from congratulations
 
 
 ### Data ###
@@ -29,6 +30,7 @@ config file for quick modifications.
     - Enable Module
     - Enable Module Announce
     - Set Items/Gold/Buffs Given At Each Level
+    - Filter Bots Option
 - SQL: No
 
 
@@ -37,6 +39,7 @@ config file for quick modifications.
 - v2022.04.09 - Fixed deprecation warnings
 - v2017.08.06 - Release
 - v2017.09.30 - Fix Level Display Bug. Update Strings.
+- v2025.07.17 - Added bot filtering functionality
 
 
 ### Credits ###
@@ -74,12 +77,44 @@ struct COL
     uint32 acoreMessageId;
     bool congratsAnnounce, congratsEnable;
     bool CongratsPerLevelEnable;
+    bool CongratsFilterBots;
 };
 
 COL col;
 
+// Function to check if a player is a bot
+bool isPlayerBot(Player* player)
+{
+    if (!player || !player->GetSession())
+        return false;
+    
+    // Method 1: Check if session has bot flag (most common for playerbot module)
+    if (player->GetSession()->IsBot())
+        return true;
+    
+    // Method 2: Alternative check - some bot implementations use different methods
+    // Uncomment and modify based on your specific playerbot implementation
+    /*
+    if (player->GetSession()->GetPlayer() && player->GetSession()->GetPlayer()->IsBot())
+        return true;
+    */
+    
+    // Method 3: Check session type or other bot indicators
+    // You may need to adjust this based on your specific playerbot module version
+    /*
+    if (player->GetSession()->GetSessionType() == SESSION_TYPE_BOT)
+        return true;
+    */
+    
+    return false;
+}
+
 uint32 giveAward(Player* player)
 {
+    // Check if we should filter bots and if this player is a bot
+    if (col.CongratsFilterBots && isPlayerBot(player))
+        return 0;
+
     QueryResult result = WorldDatabase.Query("SELECT * FROM `mod_congrats_on_level_items` WHERE `level`={} AND (`race`={} OR `race`=0) AND (`class`={} OR `class`=0)", player->GetLevel(), player->getRace(), player->getClass());
 
     uint32 money = 0;
@@ -124,6 +159,10 @@ public:
 
     void OnPlayerLogin(Player* player)
     {
+        // Check if we should filter bots and if this player is a bot
+        if (col.CongratsFilterBots && isPlayerBot(player))
+            return;
+
         // Announce Module
         if (col.congratsAnnounce)
             ChatHandler(player->GetSession()).SendSysMessage(col.acoreMessageId);
@@ -143,6 +182,10 @@ public:
         // If enabled...
         if (col.congratsEnable)
         {
+            // Check if we should filter bots and if this player is a bot
+            if (col.CongratsFilterBots && isPlayerBot(player))
+                return;
+
             uint8 level = player->GetLevel();
             uint32 money = 0;
             bool isRewardLevel = false;
@@ -179,11 +222,15 @@ public:
                 {
                     case LOCALE_enUS:
                     case LOCALE_koKR:
-                    case LOCALE_frFR:
                     case LOCALE_deDE:
                     case LOCALE_ruRU:
                     {
                         ss << "|cffFFFFFF[ |cffFF0000C|cffFFA500O|cffFFFF00N|cff00FF00G|cff00FFFFR|cff6A5ACDA|cffFF00FFT|cff98FB98S|cffFF0000! |cffFFFFFF] : |cff4CFF00 " << player->GetName() << " |cffFFFFFFhas reached |cff4CFF00Level " << static_cast<int>(player->GetLevel()) << "|cffFFFFFF!";
+                        break;
+                    }
+                    case LOCALE_frFR:
+                    {
+                        ss << "|cffFFFFFF[ |cffFF0000F|cffFFA500É|cffFFFF00L|cff00FF00I|cff00FFFFÇ|cff6A5ACDI|cffFF00FFT|cff98FB98A|cffFF0000T|cffFFA500I|cffFFFF00O|cff00FF00N|cff00FFFFS|cffFF0000! |cffFFFFFF] : |cff4CFF00 " << player->GetName() << " |cffFFFFFFa atteint le |cff4CFF00niveau " << static_cast<int>(player->GetLevel()) << "|cffFFFFFF !";
                         break;
                     }
                     case LOCALE_zhCN:
@@ -216,11 +263,15 @@ public:
                 {
                     case LOCALE_enUS:
                     case LOCALE_koKR:
-                    case LOCALE_frFR:
                     case LOCALE_deDE:
                     case LOCALE_ruRU:
                     {
                         ss << "|cffFFFFFF[ |cffFF0000C|cffFFA500O|cffFFFF00N|cff00FF00G|cff00FFFFR|cff6A5ACDA|cffFF00FFT|cff98FB98S|cffFF0000! |cffFFFFFF] : |cff4CFF00 " << player->GetName() << " |cffFFFFFFhas reached |cff4CFF00Level " << static_cast<int>(player->GetLevel()) << "|cffFFFFFF!";
+                        break;
+                    }
+                    case LOCALE_frFR:
+                    {
+                        ss << "|cffFFFFFF[ |cffFF0000F|cffFFA500É|cffFFFF00L|cff00FF00I|cff00FFFFÇ|cff6A5ACDI|cffFF00FFT|cff98FB98A|cffFF0000T|cffFFA500I|cffFFFF00O|cff00FF00N|cff00FFFFS|cffFF0000! |cffFFFFFF] : |cff4CFF00 " << player->GetName() << " |cffFFFFFFa atteint le |cff4CFF00niveau " << static_cast<int>(player->GetLevel()) << "|cffFFFFFF !";
                         break;
                     }
                     case LOCALE_zhCN: // 简体中文
@@ -249,11 +300,15 @@ public:
                 {
                     case LOCALE_enUS:
                     case LOCALE_koKR:
-                    case LOCALE_frFR:
                     case LOCALE_deDE:
                     case LOCALE_ruRU:
                     {
                         ss2 << "Congrats on Level " << static_cast<int>(player->GetLevel()) << " " << player->GetName() << "! You've been awarded " << money << " Copper and a few treasures!";
+                        break;
+                    }
+                    case LOCALE_frFR:
+                    {
+                        ss2 << "Félicitations pour le niveau " << static_cast<int>(player->GetLevel()) << " " << player->GetName() << " ! Vous avez reçu " << money << " pièces de cuivre et quelques trésors !";
                         break;
                     }
                     case LOCALE_zhCN: // 简体中文
@@ -297,6 +352,7 @@ public:
             col.congratsAnnounce = sConfigMgr->GetOption<uint32>("Congrats.Announce", 1);
             col.congratsEnable = sConfigMgr->GetOption<uint32>("Congrats.Enable", 1);
             col.CongratsPerLevelEnable = sConfigMgr->GetOption<uint32>("CongratsPerLevel.Enable", 1);
+            col.CongratsFilterBots = sConfigMgr->GetOption<uint32>("Congrats.FilterBots", 1);
         }
     }
 };
