@@ -58,6 +58,7 @@ config file for quick modifications.
 - [OregonCore](https://wiki.oregon-core.net/)
 - [Wowhead.com](http://wowhead.com)
 - [AoWoW](https://wotlk.evowow.com/)
+- [mod-player-bot-level-brackets](https://github.com/DustinHendrickson)
 
 
 ### License ###
@@ -69,6 +70,7 @@ config file for quick modifications.
 #include "Configuration/Config.h"
 #include "Chat.h"
 #include "Player.h"
+#include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
 #include "WorldSessionMgr.h"
 
@@ -82,37 +84,29 @@ struct COL
 
 COL col;
 
-// Function to check if a player is a bot
-bool isPlayerBot(Player* player)
+
+/**
+ * @brief Checks if the given player is a random bot.
+ *
+ * This function verifies whether the provided Player pointer refers to a random bot
+ * managed by the RandomPlayerbotMgr. If the player pointer is null, it returns false.
+ *
+ * @param player Pointer to the Player object to check.
+ * @return true if the player is a random bot, false otherwise.
+ */
+static bool IsPlayerRandomBot(Player* player)
 {
-    if (!player || !player->GetSession())
+    if (!player)
+    {
         return false;
-    
-    // Method 1: Check if session has bot flag (most common for playerbot module)
-    if (player->GetSession()->IsBot())
-        return true;
-    
-    // Method 2: Alternative check - some bot implementations use different methods
-    // Uncomment and modify based on your specific playerbot implementation
-    /*
-    if (player->GetSession()->GetPlayer() && player->GetSession()->GetPlayer()->IsBot())
-        return true;
-    */
-    
-    // Method 3: Check session type or other bot indicators
-    // You may need to adjust this based on your specific playerbot module version
-    /*
-    if (player->GetSession()->GetSessionType() == SESSION_TYPE_BOT)
-        return true;
-    */
-    
-    return false;
+    }
+    return sRandomPlayerbotMgr->IsRandomBot(player);
 }
 
 uint32 giveAward(Player* player)
 {
     // Check if we should filter bots and if this player is a bot
-    if (col.CongratsFilterBots && isPlayerBot(player))
+    if (col.CongratsFilterBots && IsPlayerRandomBot(player))
         return 0;
 
     QueryResult result = WorldDatabase.Query("SELECT * FROM `mod_congrats_on_level_items` WHERE `level`={} AND (`race`={} OR `race`=0) AND (`class`={} OR `class`=0)", player->GetLevel(), player->getRace(), player->getClass());
@@ -160,7 +154,7 @@ public:
     void OnPlayerLogin(Player* player)
     {
         // Check if we should filter bots and if this player is a bot
-        if (col.CongratsFilterBots && isPlayerBot(player))
+        if (col.CongratsFilterBots && IsPlayerRandomBot(player))
             return;
 
         // Announce Module
@@ -183,7 +177,7 @@ public:
         if (col.congratsEnable)
         {
             // Check if we should filter bots and if this player is a bot
-            if (col.CongratsFilterBots && isPlayerBot(player))
+            if (col.CongratsFilterBots && IsPlayerRandomBot(player))
                 return;
 
             uint8 level = player->GetLevel();
